@@ -1,0 +1,28 @@
+{
+  "name": "fons-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run --workspace frontend dev",
+    "build": "npm run --workspace frontend build",
+    "start": "npm run --workspace frontend start",
+    "lint": "npm run --workspace frontend lint",
+    "backend:dev": "npm run --workspace backend dev",
+    "backend:typecheck": "npm run --workspace backend typecheck",
+    "backend:build": "npm run --workspace backend build",
+    "backend:start": "npm run --workspace backend start",
+    "frontend:typecheck": "npm run --workspace frontend typecheck",
+    "db:generate": "npm run --workspace backend db:generate",
+    "db:migrate": "npm run --workspace backend db:migrate",
+    "db:migrate:dev": "npm run --workspace backend db:migrate:dev",
+    "db:migrate:deploy": "npm run --workspace backend prisma:deploy",
+    "db:push": "npm run --workspace backend db:push",
+    "db:seed": "npm run --workspace backend db:seed",
+    "db:seed:dev": "npm run --workspace backend db:seed:dev",
+    "ci": "npm run db:generate && npm run backend:typecheck && npm run backend:build && npm run frontend:typecheck && npm run build && npm run lint"
+  }
+}

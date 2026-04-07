@@ -1,0 +1,9 @@
+FROM node:22-bookworm
+
+WORKDIR /app/backend
+
+COPY backend/package.json backend/package-lock.json* ./
+
+RUN npm install
+
+CMD ["npm", "run", "dev"]

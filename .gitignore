@@ -1,0 +1,58 @@
+# OS / editor
+.DS_Store
+.vscode/
+*.code-workspace
+
+# Repo-level runtime data
+/backups/
+/logs/
+
+# Dependencies, caches, and build output
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/coverage/
+**/.turbo/
+**/.cache/
+**/*.tsbuildinfo
+
+# Logs and transient runtime files
+**/*.log
+**/*.pid
+**/*.seed
+**/*.pid.lock
+**/tmp/
+**/temp/
+
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+!**/.env.template
+!**/.env.*.template
+!/app/.env.phase4-public.template
+
+# Local databases / state
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Secrets and certificates
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+
+# App-specific local machine/runtime artifacts
+/app/cloudflared/*.json
+!/app/cloudflared/*.example.json
+/app/cookies.txt
+
+# Common local app data folders if they appear later
+**/uploads/
+**/storage/
+
+# Keep normal Next.js generated type shim tracked
+!/app/frontend/next-env.d.ts

@@ -1,0 +1,14 @@
+tunnel: 71328a20-c09f-4481-a4c0-9b7a6477bedd
+credentials-file: /etc/cloudflared/71328a20-c09f-4481-a4c0-9b7a6477bedd.json
+protocol: http2
+
+ingress:
+  - hostname: fonsjogjaac.com
+    service: http://fons_frontend:3000
+    originRequest:
+      httpHostHeader: fonsjogjaac.com
+  - hostname: www.fonsjogjaac.com
+    service: http://fons_frontend:3000
+    originRequest:
+      httpHostHeader: www.fonsjogjaac.com
+  - service: http_status:404

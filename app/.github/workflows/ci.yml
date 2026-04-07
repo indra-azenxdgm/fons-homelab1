@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=optional
+
+      - name: Clear Next build cache
+        run: rm -rf frontend/.next
+
+      - name: Generate Prisma client
+        run: npm run --workspace backend prisma:generate
+
+      - name: Typecheck backend
+        run: npm run --workspace backend typecheck
+
+      - name: Build backend
+        run: npm run --workspace backend build
+
+      - name: Typecheck frontend
+        run: npm run --workspace frontend typecheck
+
+      - name: Build frontend
+        run: npm run --workspace frontend build
+
+      - name: Lint frontend
+        run: npm run lint

@@ -1,0 +1,4 @@
+services:
+  fons_cloudflare:
+    profiles:
+      - public-cutover

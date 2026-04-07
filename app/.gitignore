@@ -1,0 +1,59 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/backend/node_modules/
+/frontend/node_modules/
+/frontend/node_modules/.cache/
+/.cache/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/backend/dist/
+/frontend/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+*.bak
+/backups/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!.env.phase4-public.template
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+!frontend/next-env.d.ts
+
+/frontend/src/generated/prisma
+
+# cloudflared runtime credentials
+/cloudflared/*.json
+!/cloudflared/*.example.json

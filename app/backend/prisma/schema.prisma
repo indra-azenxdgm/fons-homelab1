@@ -1,0 +1,397 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  PAID
+  CANCELLED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  SQUAD
+}
+
+enum FinancePaymentMethod {
+  CASH
+  TRANSFER_BCA
+  TRANSFER_BRI
+  TRANSFER_BNI
+  TRANSFER_MANDIRI
+  OTHER
+}
+
+enum ExpenseCategory {
+  OPERATIONAL
+  SPARE_PART
+  MAINTENANCE
+  OFFICE
+  SUBSCRIPTION
+  TRANSPORTATION
+  TOOLS
+  OTHER
+}
+
+enum ExpensePaymentMethod {
+  CASH
+  BANK_TRANSFER
+  QRIS
+  OTHER
+}
+
+enum TimeSlot {
+  SLOT_0900 @map("09:00")
+  SLOT_1100 @map("11:00")
+  SLOT_1300 @map("13:00")
+  SLOT_1500 @map("15:00")
+}
+
+model Customer {
+  id          String    @id @default(cuid())
+  fullName    String
+  phone       String    @unique
+  email       String?   @unique
+  notes       String?
+  bookings    Booking[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([fullName])
+}
+
+model Booking {
+  id               String        @id @default(cuid())
+  bookingCode      String        @unique
+  clientSubmissionId String?     @unique
+  customerId       String
+  serviceTypeId    String
+  bookingDate      DateTime      @db.Date
+  timeSlot         TimeSlot
+  status           BookingStatus @default(PENDING)
+  contactName      String
+  contactPhone     String
+  contactEmail     String?
+  serviceDisplayName String?
+  serviceVariant   String?
+  serviceIssue     String?
+  serviceComplaint String?
+  addressLine1     String
+  mapsUrl          String?
+  latitude         Float?
+  longitude        Float?
+  addressLine2     String?
+  district         String?
+  city             String
+  province         String?
+  postalCode       String?
+  notes            String?
+  internalNotes    String?
+  customer         Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  serviceType      ServiceType   @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+  squadAssignments BookingSquadAssignment[]
+  logs             BookingLog[]
+  notificationLogs NotificationLog[]
+  adminNotifications AdminNotification[]
+  incomeRecords    IncomeRecord[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([customerId])
+  @@index([serviceTypeId])
+  @@index([bookingDate, timeSlot])
+  @@index([status, bookingDate])
+}
+
+model Squad {
+  id          String    @id @default(cuid())
+  alias       String    @unique
+  name        String
+  normalizedName String @unique
+  phone       String?
+  email       String?
+  code        String    @unique
+  isActive    Boolean   @default(true)
+  notes       String?
+  bookingAssignments BookingSquadAssignment[]
+  adminUsers   AdminUser[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+  @@unique([name])
+}
+
+model BookingSquadAssignment {
+  id        String   @id @default(cuid())
+  bookingId String
+  squadId   String
+  createdAt DateTime @default(now())
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  squad     Squad    @relation(fields: [squadId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, squadId])
+  @@index([bookingId, createdAt])
+  @@index([squadId, createdAt])
+}
+
+model ServiceType {
+  id                String    @id @default(cuid())
+  name              String    @unique
+  slug              String    @unique
+  description       String?
+  isActive          Boolean   @default(true)
+  estimatedDuration Int?
+  bookings          Booking[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([isActive])
+}
+
+model BookingLog {
+  id             String        @id @default(cuid())
+  bookingId      String
+  adminUserId    String?
+  action         String
+  fromStatus     BookingStatus?
+  toStatus       BookingStatus?
+  note           String?
+  metadata       Json?
+  booking        Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  adminUser      AdminUser?    @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([bookingId, createdAt])
+  @@index([adminUserId])
+}
+
+model AdminUser {
+  id            String       @id @default(cuid())
+  name          String
+  email         String       @unique
+  passwordHash  String
+  squadId       String?
+  notificationPreferences Json?
+  role          AdminRole    @default(ADMIN)
+  isActive      Boolean      @default(true)
+  mustChangePassword Boolean @default(false)
+  passwordUpdatedAt DateTime?
+  invitedAt     DateTime?
+  lastLoginAt   DateTime?
+  sessions      AdminSession[]
+  bookingLogs   BookingLog[]
+  authLogs      AdminAuthLog[]
+  notifications AdminNotification[]
+  squad         Squad?       @relation(fields: [squadId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([isActive])
+  @@index([role])
+  @@index([squadId])
+}
+
+model AdminSession {
+  id          String    @id @default(cuid())
+  adminUserId String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+
+  adminUser   AdminUser  @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, expiresAt])
+  @@index([adminUserId, revokedAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model AdminAuthLog {
+  id         String    @id @default(cuid())
+  adminUserId String?
+  event      String
+  outcome    String
+  reason     String?
+  identifier String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+
+  adminUser  AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+
+  @@index([adminUserId, createdAt])
+  @@index([event, createdAt])
+  @@index([outcome, createdAt])
+}
+
+model SubmissionAttemptLog {
+  id               String   @id @default(cuid())
+  channel          String
+  outcome          String
+  reason           String
+  ipAddress        String?
+  phone            String?
+  userAgent        String?
+  submissionKey    String?
+  payload          Json?
+  createdAt        DateTime @default(now())
+
+  @@index([channel, createdAt])
+  @@index([outcome, createdAt])
+  @@index([submissionKey])
+}
+
+model NotificationLog {
+  id              String   @id @default(cuid())
+  bookingId       String
+  eventType       String
+  channel         String
+  provider        String
+  recipient       String
+  status          String
+  errorMessage    String?
+  payload         Json?
+  createdAt       DateTime @default(now())
+
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([status, createdAt])
+}
+
+model AdminNotification {
+  id         String    @id @default(cuid())
+  adminUserId String
+  bookingId  String?
+  type       String
+  severity   String    @default("info")
+  audienceType String
+  audienceRole String?
+  title      String
+  message    String
+  detail     String?
+  href       String?
+  auditMetadata Json?
+  readAt     DateTime?
+  archivedAt DateTime?
+  archivedReason String?
+  createdAt  DateTime  @default(now())
+
+  adminUser  AdminUser  @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  booking    Booking?   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, createdAt])
+  @@index([adminUserId, readAt, createdAt])
+  @@index([adminUserId, archivedAt, createdAt])
+  @@index([bookingId, createdAt])
+}
+
+model AdminNotificationRuleConfig {
+  id         String   @id @default(cuid())
+  scope      String   @unique
+  rules      Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model IncomeRecord {
+  id                 String               @id @default(cuid())
+  incomeCode         String               @unique
+  bookingId          String?
+  customerName       String
+  transactionDate    DateTime             @db.Date
+  billNumber         String               @unique
+  amount             Int
+  serviceDescription String
+  paymentMethod      FinancePaymentMethod
+  notes              String?
+  items              IncomeRecordItem[]
+  booking            Booking?             @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([transactionDate])
+  @@index([bookingId])
+  @@index([billNumber])
+}
+
+model IncomeRecordItem {
+  id             String       @id @default(cuid())
+  incomeRecordId String
+  sortOrder      Int          @default(0)
+  description    String
+  amount         Int
+  incomeRecord   IncomeRecord @relation(fields: [incomeRecordId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([incomeRecordId, sortOrder])
+}
+
+model ExpenseRecord {
+  id              String               @id @default(cuid())
+  transactionDate DateTime             @db.Date
+  billCode        String?              @unique
+  expenseType     String
+  category        ExpenseCategory?
+  amount          Int
+  paymentMethod   ExpensePaymentMethod?
+  notes           String?
+  items           ExpenseRecordItem[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([transactionDate])
+  @@index([expenseType])
+  @@index([billCode])
+  @@index([category])
+}
+
+model ExpenseRecordItem {
+  id              String        @id @default(cuid())
+  expenseRecordId String
+  sortOrder       Int           @default(0)
+  description     String
+  amount          Int
+  expenseRecord   ExpenseRecord @relation(fields: [expenseRecordId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([expenseRecordId, sortOrder])
+}
+
+model CompanyProfile {
+  id             String   @id @default(cuid())
+  singletonKey   String   @unique @default("default")
+  companyName    String
+  companyTagline String?
+  address        String?
+  phone          String?
+  email          String?
+  website        String?
+  logoUrl        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([updatedAt])
+}

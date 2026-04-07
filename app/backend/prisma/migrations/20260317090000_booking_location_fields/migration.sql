@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Booking"
+ADD COLUMN "mapsUrl" TEXT,
+ADD COLUMN "latitude" DOUBLE PRECISION,
+ADD COLUMN "longitude" DOUBLE PRECISION;

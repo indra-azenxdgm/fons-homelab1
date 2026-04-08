@@ -7,10 +7,12 @@ import {
   updateAdminBooking,
 } from "@/features/admin/lib/server/admin-service";
 import {
+  BookingDayUnavailableError,
   BookingCapacityError,
   BookingDuplicateActiveError,
   BookingValidationError,
   createBooking,
+  getBookingDateAvailability,
   getAvailableSlots,
   getBookingByCode,
   getBookingBySubmissionKey,
@@ -21,20 +23,23 @@ import { bookingSchema } from "@/features/booking/lib/booking-schema";
 
 export async function getBookingFormData() {
   const defaultDate = getDefaultBookingDate();
-  const [serviceTypes, initialSlots] = await Promise.all([
+  const [serviceTypes, initialAvailability] = await Promise.all([
     getServiceTypes(),
-    getAvailableSlots(defaultDate),
+    getBookingDateAvailability(defaultDate),
   ]);
 
   return {
     defaultDate,
     serviceTypes,
-    initialSlots,
+    initialSlots: initialAvailability.slots,
+    initialDayStatus: initialAvailability.dayStatus,
+    initialAvailabilityMessage: initialAvailability.message,
   };
 }
 
 export {
   bookingSchema,
+  BookingDayUnavailableError,
   bookingStatusOptions,
   BookingCapacityError,
   BookingDuplicateActiveError,
@@ -44,6 +49,7 @@ export {
   getAdminBookings,
   getAdminDashboardOverview,
   getAdminServiceTypes,
+  getBookingDateAvailability,
   getAvailableSlots,
   getBookingByCode,
   getBookingBySubmissionKey,

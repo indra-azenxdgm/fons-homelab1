@@ -1,7 +1,7 @@
 import "server-only";
 
 import { fetchBackendJson } from "@/lib/api-client";
-import type { TimeSlot } from "@/features/booking/constants";
+import type { BookingDayStatus, TimeSlot } from "@/features/booking/constants";
 
 export async function getPublicBookingFormApi() {
   return fetchBackendJson<{
@@ -18,6 +18,8 @@ export async function getPublicBookingFormApi() {
       label: string;
       available: boolean;
     }>;
+    initialDayStatus: BookingDayStatus;
+    initialAvailabilityMessage: string | null;
   }>("/api/public/booking-form");
 }
 
@@ -30,10 +32,12 @@ export async function getPublicBookingAvailabilityApi(bookingDate: string) {
         label: string;
         available: boolean;
       }>;
+      dayStatus: BookingDayStatus;
+      message: string | null;
     };
   }>(`/api/public/booking-availability?date=${encodeURIComponent(bookingDate)}`);
 
-  return response.data.slots;
+  return response.data;
 }
 
 export async function getPublicBookingByCodeApi(bookingCode: string) {

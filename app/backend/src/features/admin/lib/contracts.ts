@@ -44,9 +44,15 @@ export type AdminNavigationIcon =
   | "clipboard-list"
   | "calendar-range"
   | "wallet"
+  | "arrow-down-circle"
+  | "arrow-up-circle"
+  | "building-2"
+  | "bell"
   | "users"
   | "user-round"
-  | "shield-user";
+  | "shield-user"
+  | "shield-alert"
+  | "settings";
 
 export type AdminNavigationItem = {
   href: string;
@@ -54,6 +60,7 @@ export type AdminNavigationItem = {
   icon: AdminNavigationIcon;
   permission: AdminPermission;
   matchMode: "exact" | "prefix";
+  children?: AdminNavigationItem[];
 };
 
 export type AdminShellUser = {

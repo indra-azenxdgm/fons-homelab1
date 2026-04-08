@@ -10,6 +10,14 @@ export const BOOKING_STATUS_VALUES = [
 
 export type BookingStatus = (typeof BOOKING_STATUS_VALUES)[number];
 
+export const BOOKING_DAY_STATUS_VALUES = [
+  "OPEN",
+  "FULL_BOOKED",
+  "CLOSED",
+] as const;
+
+export type BookingDayStatus = (typeof BOOKING_DAY_STATUS_VALUES)[number];
+
 export const TIME_SLOT_OPTIONS = [
   { value: "SLOT_0900", label: "09:00" },
   { value: "SLOT_1100", label: "11:00" },

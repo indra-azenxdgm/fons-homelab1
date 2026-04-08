@@ -61,6 +61,12 @@ enum TimeSlot {
   SLOT_1500 @map("15:00")
 }
 
+enum BookingDayStatus {
+  OPEN
+  FULL_BOOKED
+  CLOSED
+}
+
 model Customer {
   id          String    @id @default(cuid())
   fullName    String
@@ -180,6 +186,22 @@ model BookingLog {
   @@index([adminUserId])
 }
 
+model BookingDayOverride {
+  id                   String           @id @default(cuid())
+  date                 DateTime         @unique @db.Date
+  status               BookingDayStatus
+  reason               String?
+  createdByAdminUserId String
+  updatedByAdminUserId String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  createdByAdminUser   AdminUser        @relation("BookingDayOverrideCreatedBy", fields: [createdByAdminUserId], references: [id], onDelete: Restrict)
+  updatedByAdminUser   AdminUser        @relation("BookingDayOverrideUpdatedBy", fields: [updatedByAdminUserId], references: [id], onDelete: Restrict)
+
+  @@index([status, date])
+}
+
 model AdminUser {
   id            String       @id @default(cuid())
   name          String
@@ -197,6 +219,8 @@ model AdminUser {
   bookingLogs   BookingLog[]
   authLogs      AdminAuthLog[]
   notifications AdminNotification[]
+  createdBookingDayOverrides BookingDayOverride[] @relation("BookingDayOverrideCreatedBy")
+  updatedBookingDayOverrides BookingDayOverride[] @relation("BookingDayOverrideUpdatedBy")
   squad         Squad?       @relation(fields: [squadId], references: [id], onDelete: SetNull)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

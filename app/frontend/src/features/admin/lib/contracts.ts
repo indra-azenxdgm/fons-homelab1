@@ -51,6 +51,7 @@ export type AdminNavigationIcon =
   | "users"
   | "user-round"
   | "shield-user"
+  | "shield-alert"
   | "settings";
 
 export type AdminNavigationItem = {

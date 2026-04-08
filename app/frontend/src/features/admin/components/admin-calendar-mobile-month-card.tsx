@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import type { BookingStatus } from "@/features/booking/constants";
+import type { BookingDayStatus, BookingStatus } from "@/features/booking/constants";
 
 const statusDotMap: Record<BookingStatus, string> = {
   PENDING: "bg-amber-500",
@@ -18,6 +18,7 @@ type MobileCalendarDay = {
   href: string;
   isCurrentMonth: boolean;
   isSelected: boolean;
+  blockedStatus: BookingDayStatus;
   dotStatuses: BookingStatus[];
 };
 
@@ -89,7 +90,9 @@ export function AdminCalendarMobileMonthCard({
                   day.isSelected
                     ? "bg-foreground text-background"
                     : day.isCurrentMonth
-                      ? "text-foreground"
+                      ? day.blockedStatus !== "OPEN"
+                        ? "bg-amber-50 text-amber-900"
+                        : "text-foreground"
                       : "text-muted-foreground/35"
                 }`}
               >

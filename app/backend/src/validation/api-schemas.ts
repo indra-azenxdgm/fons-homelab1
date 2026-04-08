@@ -1,4 +1,4 @@
-import { AdminRole, ExpenseCategory, ExpensePaymentMethod, FinancePaymentMethod } from "@prisma/client";
+import { AdminRole, BookingDayStatus, ExpenseCategory, ExpensePaymentMethod, FinancePaymentMethod } from "@prisma/client";
 import { z } from "zod";
 
 import { bookingStatusOptions } from "@/services/bookings.service";
@@ -68,6 +68,12 @@ export const calendarQuerySchema = z.object({
   status: optionalBookingStatus,
   assignedSquadId: optionalTrimmed,
   serviceTypeId: optionalTrimmed,
+});
+
+export const bookingDayOverrideUpsertSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  status: z.nativeEnum(BookingDayStatus),
+  reason: z.string().trim().max(240).optional().nullable().or(z.literal("")),
 });
 
 export const customerListQuerySchema = z.object({
@@ -218,6 +224,12 @@ export const companyProfileUpsertSchema = z.object({
     message: "Enter a valid website URL",
   }),
   logoUrl: z.string().trim().max(500).optional().nullable().or(z.literal("")),
+});
+
+export const operationalDataWipeSchema = z.object({
+  confirmationText: z.string().max(120),
+  dryRun: z.boolean(),
+  includeSubmissionLogs: z.boolean().optional(),
 });
 
 export const adminUserPasswordChangeSchema = z.object({

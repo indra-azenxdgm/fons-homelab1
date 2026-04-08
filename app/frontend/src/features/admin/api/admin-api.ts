@@ -3,11 +3,12 @@ import "server-only";
 import { fetchBackendJson } from "@/lib/api-client";
 import { getAdminAuthToken } from "@/features/admin/lib/auth";
 
-export async function fetchAdminApi<T>(path: string) {
+export async function fetchAdminApi<T>(path: string, options: RequestInit = {}) {
   const token = await getAdminAuthToken();
 
   return fetchBackendJson<T>(path, {
     authToken: token,
+    ...options,
   });
 }
 

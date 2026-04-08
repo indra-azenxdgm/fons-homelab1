@@ -11,16 +11,17 @@ import {
 import { getAuthenticatedAdmin } from "@/middleware/auth";
 import {
   bookingSchema,
+  BookingDayUnavailableError,
   bookingStatusOptions,
   BookingCapacityError,
   BookingDuplicateActiveError,
   BookingValidationError,
   createBooking,
+  getBookingDateAvailability,
   getAdminBookingDetail,
   getAdminBookings,
   getAdminDashboardOverview,
   getAdminServiceTypes,
-  getAvailableSlots,
   getBookingByCode,
   getBookingBySubmissionKey,
   getBookingFormData,
@@ -92,7 +93,7 @@ export async function getPublicBookingAvailability(request: Request, response: R
     throw error;
   }
 
-    const parsedQuery = dateQuerySchema.safeParse(request.query);
+  const parsedQuery = dateQuerySchema.safeParse(request.query);
 
   if (!parsedQuery.success) {
     await logBookingSecurityEvent({
@@ -105,8 +106,8 @@ export async function getPublicBookingAvailability(request: Request, response: R
     return;
   }
 
-  const slots = await getAvailableSlots(String(parsedQuery.data.date));
-  sendPublicSuccess(response, { slots });
+  const availability = await getBookingDateAvailability(String(parsedQuery.data.date));
+  sendPublicSuccess(response, availability);
 }
 
 export async function createPublicBooking(request: Request, response: Response) {
@@ -214,6 +215,20 @@ export async function createPublicBooking(request: Request, response: Response) 
         code: "slot_unavailable",
         message: error.message,
         fieldErrors: {
+          timeSlot: [error.message],
+        },
+      });
+      return;
+    }
+
+    if (error instanceof BookingDayUnavailableError) {
+      sendApiError(response, {
+        status: 409,
+        category: "conflict",
+        code: error.status === "CLOSED" ? "booking_date_closed" : "booking_date_full_booked",
+        message: error.message,
+        fieldErrors: {
+          bookingDate: [error.message],
           timeSlot: [error.message],
         },
       });

@@ -1,4 +1,4 @@
-import { BookingStatus, Prisma, TimeSlot } from "@prisma/client";
+import { BookingDayStatus, BookingStatus, Prisma, TimeSlot } from "@prisma/client";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/client";
 
 import { db } from "@/lib/prisma";
@@ -25,6 +25,7 @@ import {
 } from "@/features/booking/lib/booking-security";
 import { createBookingCreatedAdminNotifications } from "@/services/notifications.service";
 import { dispatchNotificationEvent } from "@/features/notifications/lib/notification-service";
+import { getBookingDayAvailability } from "@/services/booking-day-overrides.service";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -41,6 +42,19 @@ export class BookingDuplicateActiveError extends Error {
   ) {
     super(message);
     this.name = "BookingDuplicateActiveError";
+  }
+}
+
+export class BookingDayUnavailableError extends Error {
+  status: BookingDayStatus;
+
+  constructor(
+    status: BookingDayStatus,
+    message = getDefaultBookingDayUnavailableMessage(status),
+  ) {
+    super(message);
+    this.name = "BookingDayUnavailableError";
+    this.status = status;
   }
 }
 
@@ -62,6 +76,12 @@ export function getDefaultBookingDate() {
 
 function toBookingDate(date: string) {
   return new Date(`${date}T00:00:00.000Z`);
+}
+
+function getDefaultBookingDayUnavailableMessage(status: BookingDayStatus) {
+  return status === BookingDayStatus.CLOSED
+    ? "Tanggal ini ditutup untuk booking baru. Silakan pilih tanggal lain."
+    : "Tanggal ini sudah penuh untuk booking baru. Silakan pilih tanggal lain.";
 }
 
 function parseCity(address: string) {
@@ -133,13 +153,67 @@ async function acquireSlotLock(
   `;
 }
 
+async function getLatestBookingDayStatus(
+  tx: Prisma.TransactionClient | typeof db,
+  bookingDate: string,
+) {
+  const override = await tx.bookingDayOverride.findUnique({
+    where: {
+      date: toBookingDate(bookingDate),
+    },
+    select: {
+      status: true,
+      reason: true,
+    },
+  });
+
+  if (!override || override.status === BookingDayStatus.OPEN) {
+    return null;
+  }
+
+  return {
+    status: override.status,
+    message:
+      override.status === BookingDayStatus.CLOSED
+        ? (override.reason
+          ? `Tanggal ini ditutup untuk booking baru. ${override.reason}`
+          : getDefaultBookingDayUnavailableMessage(override.status))
+        : (override.reason
+          ? `Tanggal ini sudah penuh untuk booking baru. ${override.reason}`
+          : getDefaultBookingDayUnavailableMessage(override.status)),
+  };
+}
+
 export async function getAvailableSlots(bookingDate: string) {
+  const availability = await getBookingDateAvailability(bookingDate);
+  return availability.slots;
+}
+
+export async function getBookingDateAvailability(bookingDate: string) {
   if (!DATE_PATTERN.test(bookingDate)) {
-    return TIME_SLOT_OPTIONS.map((slot) => ({
-      ...slot,
-      available: false,
-      remainingCapacity: 0,
-    }));
+    return {
+      slots: TIME_SLOT_OPTIONS.map((slot) => ({
+        ...slot,
+        available: false,
+        remainingCapacity: 0,
+      })),
+      dayStatus: BookingDayStatus.OPEN,
+      message: null,
+    };
+  }
+
+  const dayAvailability = await getBookingDayAvailability(bookingDate);
+
+  if (dayAvailability.status !== BookingDayStatus.OPEN) {
+    return {
+      slots: TIME_SLOT_OPTIONS.map((slot) => ({
+        ...slot,
+        available: false,
+        remainingCapacity: 0,
+      })),
+      dayStatus: dayAvailability.status,
+      message: dayAvailability.message,
+    };
   }
 
   const bookings = await db.booking.groupBy({
@@ -157,7 +231,8 @@ export async function getAvailableSlots(bookingDate: string) {
     bookings.map((item) => [String(item.timeSlot), item._count._all]),
   );
 
-  return TIME_SLOT_OPTIONS.map((slot) => {
+  return {
+    slots: TIME_SLOT_OPTIONS.map((slot) => {
     const booked = counts.get(slot.value) || 0;
     const remainingCapacity = Math.max(MAX_BOOKINGS_PER_SLOT - booked, 0);
 
@@ -166,7 +241,10 @@ export async function getAvailableSlots(bookingDate: string) {
       available: remainingCapacity > 0,
       remainingCapacity,
     };
-  });
+    }),
+    dayStatus: dayAvailability.status,
+    message: dayAvailability.message,
+  };
 }
 
 async function findOrCreateCustomer(
@@ -266,8 +344,15 @@ export async function createBooking(
 ): Promise<BookingCreateResult> {
   // Fast-fail against obviously full slots, but the authoritative check happens
   // again inside the locked transaction below.
-  const availableSlots = await getAvailableSlots(values.bookingDate);
-  const selectedSlot = availableSlots.find((slot) => slot.value === values.timeSlot);
+  const availability = await getBookingDateAvailability(values.bookingDate);
+  const selectedSlot = availability.slots.find((slot) => slot.value === values.timeSlot);
+
+  if (availability.dayStatus !== BookingDayStatus.OPEN) {
+    throw new BookingDayUnavailableError(
+      availability.dayStatus,
+      availability.message || undefined,
+    );
+  }
 
   if (!selectedSlot?.available) {
     throw new BookingCapacityError();
@@ -299,6 +384,15 @@ export async function createBooking(
       }
 
       await acquireSlotLock(tx, values.bookingDate, values.timeSlot);
+
+      const latestDayAvailability = await getLatestBookingDayStatus(tx, values.bookingDate);
+
+      if (latestDayAvailability) {
+        throw new BookingDayUnavailableError(
+          latestDayAvailability.status,
+          latestDayAvailability.message || undefined,
+        );
+      }
 
       const duplicateActiveBooking = await findDuplicateActiveBooking(tx, values);
 

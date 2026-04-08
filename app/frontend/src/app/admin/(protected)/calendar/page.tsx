@@ -38,6 +38,8 @@ export default async function AdminCalendarPage({
     <AdminCalendarMonth
       monthStart={calendarMonth.monthStart}
       selectedDate={calendarMonth.selectedDate}
+      selectedDayOverride={calendarMonth.selectedDayOverride}
+      dayOverrides={calendarMonth.dayOverrides}
       bookings={calendarMonth.bookings}
       serviceTypes={calendarMonth.serviceTypes}
       squads={calendarMonth.squads}

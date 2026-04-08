@@ -1,8 +1,9 @@
 import type { Request, Response } from "express";
 
 import { sendZodValidationError } from "@/controllers/controller-helpers";
-import { getCalendarMonth, getCalendarServiceTypes } from "@/services/calendar.service";
-import { calendarQuerySchema } from "@/validation/api-schemas";
+import { getAuthenticatedAdmin } from "@/middleware/auth";
+import { getCalendarMonth, getCalendarServiceTypes, updateCalendarDayOverride } from "@/services/calendar.service";
+import { bookingDayOverrideUpsertSchema, calendarQuerySchema } from "@/validation/api-schemas";
 
 export async function getAdminCalendar(request: Request, response: Response) {
   const parsedQuery = calendarQuerySchema.safeParse(request.query);
@@ -21,4 +22,29 @@ export async function getAdminCalendar(request: Request, response: Response) {
 
 export async function getAdminServiceTypes(_request: Request, response: Response) {
   response.json({ serviceTypes: await getCalendarServiceTypes() });
+}
+
+export async function patchAdminCalendarDayOverride(request: Request, response: Response) {
+  const parsedBody = bookingDayOverrideUpsertSchema.safeParse(request.body);
+
+  if (!parsedBody.success) {
+    sendZodValidationError(response, parsedBody.error, "Calendar day status is not valid.");
+    return;
+  }
+
+  const adminUser = getAuthenticatedAdmin(response);
+
+  if (!adminUser) {
+    throw new Error("UNAUTHORIZED_ADMIN");
+  }
+
+  response.json({
+    success: true,
+    ...(await updateCalendarDayOverride({
+      date: parsedBody.data.date,
+      status: parsedBody.data.status,
+      reason: parsedBody.data.reason,
+      actingAdminUserId: adminUser.id,
+    })),
+  });
 }

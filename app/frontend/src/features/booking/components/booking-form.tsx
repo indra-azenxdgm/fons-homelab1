@@ -33,6 +33,7 @@ import {
   type BookingFormValues,
   type ParsedBookingFormValues,
 } from "@/features/booking/lib/booking-schema";
+import type { BookingDayStatus } from "@/features/booking/constants";
 import {
   buildPublicBookingServiceSummary,
   CLEANING_VARIANTS,
@@ -56,6 +57,8 @@ type BookingFormProps = {
   serviceTypes: PublicServiceType[];
   defaultDate: string;
   initialSlots: Slot[];
+  initialDayStatus: BookingDayStatus;
+  initialAvailabilityMessage: string | null;
 };
 
 const FIELD_SCROLL_ORDER: (keyof BookingFormValues)[] = [
@@ -80,6 +83,8 @@ export function BookingForm({
   serviceTypes,
   defaultDate,
   initialSlots,
+  initialDayStatus,
+  initialAvailabilityMessage,
 }: BookingFormProps) {
   const orderedServiceTypes = sortPublicServiceTypes(serviceTypes);
   const router = useRouter();
@@ -90,6 +95,8 @@ export function BookingForm({
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
   const [slots, setSlots] = useState(initialSlots);
+  const [dayStatus, setDayStatus] = useState<BookingDayStatus>(initialDayStatus);
+  const [availabilityMessage, setAvailabilityMessage] = useState<string | null>(initialAvailabilityMessage);
   const [slotError, setSlotError] = useState<string | null>(null);
   const [isLoadingSlots, startSlotTransition] = useTransition();
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
@@ -245,7 +252,7 @@ export function BookingForm({
         }
 
         const data = (await response.json()) as
-          | { ok: true; data: { slots: Slot[] } }
+          | { ok: true; data: { slots: Slot[]; dayStatus: BookingDayStatus; message: string | null } }
           | { ok: false; error: { message: string } };
 
         if (!response.ok || !data.ok) {
@@ -255,6 +262,8 @@ export function BookingForm({
         }
 
         setSlots(data.data.slots);
+        setDayStatus(data.data.dayStatus);
+        setAvailabilityMessage(data.data.message);
 
         const currentSlot = form.getValues("timeSlot");
         const stillAvailable = data.data.slots.some(
@@ -268,6 +277,8 @@ export function BookingForm({
         }
       } catch (error) {
         console.error(error);
+        setDayStatus("OPEN");
+        setAvailabilityMessage(null);
         setSlotError("Slot yang tersedia belum bisa dimuat saat ini");
       }
     });
@@ -558,6 +569,10 @@ export function BookingForm({
             return "Sudah ada booking serupa pada nomor HP, tanggal, dan jam yang sama.";
           case "slot_unavailable":
             return "Slot yang dipilih sudah tidak tersedia. Silakan pilih jam lain.";
+          case "booking_date_closed":
+            return "Tanggal yang dipilih sedang ditutup untuk booking baru. Silakan pilih tanggal lain.";
+          case "booking_date_full_booked":
+            return "Tanggal yang dipilih sudah penuh untuk booking baru. Silakan pilih tanggal lain.";
           case "booking_rate_limited":
             return "Terlalu banyak percobaan booking. Silakan tunggu beberapa menit lalu coba lagi.";
           case "turnstile_token_missing":
@@ -890,6 +905,18 @@ export function BookingForm({
                 hint={isLoadingSlots ? "Memperbarui jadwal" : undefined}
                 error={errors.timeSlot?.message || slotError || undefined}
               >
+                {availabilityMessage ? (
+                  <div
+                    className={cn(
+                      "mb-3 rounded-[1.05rem] border px-4 py-3 text-[12px] leading-5",
+                      dayStatus === "CLOSED"
+                        ? "border-rose-200 bg-rose-50 text-rose-800"
+                        : "border-amber-200 bg-amber-50 text-amber-800",
+                    )}
+                  >
+                    {availabilityMessage}
+                  </div>
+                ) : null}
                 {isLoadingSlots ? (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {Array.from({ length: 4 }).map((_, index) => (

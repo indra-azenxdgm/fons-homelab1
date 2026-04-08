@@ -2,12 +2,24 @@ import "server-only";
 
 import { fetchAdminApi, toQueryString } from "@/features/admin/api/admin-api";
 import type { ServiceTypeOption, SquadOption } from "@/features/admin/api/bookings-api";
-import type { BookingStatus, TimeSlot } from "@/features/booking/constants";
+import type { BookingDayStatus, BookingStatus, TimeSlot } from "@/features/booking/constants";
 
 export async function getAdminCalendarMonthApi(filters: Record<string, string | undefined>) {
   return fetchAdminApi<{
     monthStart: Date;
     selectedDate: Date;
+    selectedDayOverride: {
+      date: string;
+      status: BookingDayStatus;
+      reason: string | null;
+      message: string | null;
+    };
+    dayOverrides: Array<{
+      date: string;
+      status: BookingDayStatus;
+      reason: string | null;
+      message: string | null;
+    }>;
     bookings: Array<{
       id: string;
       bookingCode: string;
@@ -46,4 +58,27 @@ export async function getAdminServiceTypesApi() {
   }>("/api/admin/service-types");
 
   return response.serviceTypes;
+}
+
+export async function patchAdminCalendarDayOverrideApi(input: {
+  date: string;
+  status: BookingDayStatus;
+  reason?: string | null;
+}) {
+  return fetchAdminApi<{
+    success: true;
+    previousStatus: BookingDayStatus;
+    override: {
+      date: string;
+      status: BookingDayStatus;
+      reason: string | null;
+      message: string | null;
+    };
+  }>("/api/admin/calendar/day-override", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
 }

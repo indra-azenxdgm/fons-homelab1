@@ -5,7 +5,7 @@ import {
   getPublicBookingByCodeApi,
   getPublicBookingFormApi,
 } from "@/features/booking/api/bookings-api";
-import type { TimeSlot } from "@/features/booking/constants";
+import type { BookingDayStatus, TimeSlot } from "@/features/booking/constants";
 
 export function getDefaultBookingDate() {
   const today = new Date();
@@ -40,3 +40,13 @@ export async function getBookingByCode(bookingCode: string) {
     };
   } | null>;
 }
+
+export type PublicBookingAvailability = {
+  slots: Array<{
+    value: string;
+    label: string;
+    available: boolean;
+  }>;
+  dayStatus: BookingDayStatus;
+  message: string | null;
+};

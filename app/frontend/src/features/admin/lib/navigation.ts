@@ -94,6 +94,13 @@ export const adminNavigationItems: AdminNavigationItem[] = [
         permission: "settings.manage",
         matchMode: "exact",
       },
+      {
+        href: "/admin/settings/danger-zone",
+        label: "Danger Zone",
+        icon: "shield-alert",
+        permission: "settings.manage",
+        matchMode: "exact",
+      },
     ],
   },
 ];
@@ -231,6 +238,14 @@ export function getAdminPageContext(pathname: string) {
       eyebrow: "Settings",
       title: "Company Profile",
       description: "Manage company identity details and operational profile settings for the admin workspace.",
+    };
+  }
+
+  if (pathname === "/admin/settings/danger-zone") {
+    return {
+      eyebrow: "Settings",
+      title: "Danger Zone",
+      description: "Preview and wipe operational data while preserving the core configuration required for handover.",
     };
   }
 

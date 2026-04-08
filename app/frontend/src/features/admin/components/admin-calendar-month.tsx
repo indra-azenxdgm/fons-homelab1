@@ -5,6 +5,7 @@ import {
   Clock3,
   ListFilter,
 } from "lucide-react";
+import { AdminCalendarDayStatusControl } from "@/features/admin/components/admin-calendar-day-status-control";
 import { AdminCalendarEventCard } from "@/features/admin/components/admin-calendar-event-card";
 import { AdminCalendarFilters } from "@/features/admin/components/admin-calendar-filters";
 import { AdminCalendarLegend } from "@/features/admin/components/admin-calendar-legend";
@@ -20,7 +21,7 @@ import {
   toAdminCalendarView,
   type AdminCalendarView,
 } from "@/features/admin/lib/shared/admin-calendar";
-import type { BookingStatus, TimeSlot } from "@/features/booking/constants";
+import type { BookingDayStatus, BookingStatus, TimeSlot } from "@/features/booking/constants";
 
 type CalendarBooking = {
   id: string;
@@ -48,6 +49,18 @@ type CalendarBooking = {
 type AdminCalendarMonthProps = {
   monthStart: Date;
   selectedDate: Date;
+  selectedDayOverride: {
+    date: string;
+    status: BookingDayStatus;
+    reason: string | null;
+    message: string | null;
+  };
+  dayOverrides: Array<{
+    date: string;
+    status: BookingDayStatus;
+    reason: string | null;
+    message: string | null;
+  }>;
   bookings: CalendarBooking[];
   serviceTypes: Array<{
     id: string;
@@ -86,6 +99,24 @@ const statusColorMap: Record<BookingStatus, string> = {
   PAID: "border-teal-200 bg-teal-50 text-teal-800",
   CANCELLED: "border-rose-200 bg-rose-50 text-rose-800",
 };
+
+const dayStatusBadgeClassNameMap: Record<BookingDayStatus, string> = {
+  OPEN: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  FULL_BOOKED: "border-amber-200 bg-amber-50 text-amber-800",
+  CLOSED: "border-rose-200 bg-rose-50 text-rose-800",
+};
+
+function getDayStatusLabel(status: BookingDayStatus) {
+  if (status === "CLOSED") {
+    return "Closed";
+  }
+
+  if (status === "FULL_BOOKED") {
+    return "Full booking";
+  }
+
+  return "Open";
+}
 
 function formatMonthLabel(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
@@ -266,6 +297,8 @@ function getMobileCalendarDotsForDate(bookings: CalendarBooking[]) {
 export function AdminCalendarMonth({
   monthStart,
   selectedDate,
+  selectedDayOverride,
+  dayOverrides,
   bookings,
   serviceTypes,
   squads,
@@ -278,6 +311,7 @@ export function AdminCalendarMonth({
   const dayCells = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
   const weekStart = startOfWeek(selectedDate);
   const weekDaysRange = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+  const dayOverridesByDate = new Map(dayOverrides.map((override) => [override.date, override]));
 
   const bookingsByDay = new Map<string, CalendarBooking[]>();
 
@@ -307,6 +341,7 @@ export function AdminCalendarMonth({
       }),
       isCurrentMonth: day.getUTCMonth() === monthStart.getUTCMonth(),
       isSelected: dayKey === selectedDayKey,
+      blockedStatus: dayOverridesByDate.get(dayKey)?.status ?? "OPEN",
       dotStatuses: getMobileCalendarDotsForDate(bookingsByDay.get(dayKey) || []),
     };
   });
@@ -430,14 +465,29 @@ export function AdminCalendarMonth({
         </div>
 
         <section className="rounded-[1.35rem] border border-border/70 bg-white/92 p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)]">
-          <div>
-            <p className="admin-section-title">
-              Events for {formatSelectedDateLabel(selectedDate)}
-            </p>
-            <p className="admin-meta-text mt-1">
-              {selectedDayBookings.length} booking{selectedDayBookings.length === 1 ? "" : "s"} scheduled
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="admin-section-title">
+                Events for {formatSelectedDateLabel(selectedDate)}
+              </p>
+              <p className="admin-meta-text mt-1">
+                {selectedDayBookings.length} booking{selectedDayBookings.length === 1 ? "" : "s"} scheduled
+              </p>
+            </div>
+            <AdminCalendarDayStatusControl
+              date={selectedDayOverride.date}
+              currentStatus={selectedDayOverride.status}
+              currentReason={selectedDayOverride.reason}
+              compact
+            />
           </div>
+
+          {selectedDayOverride.status !== "OPEN" ? (
+            <div className={`mt-3 rounded-[1rem] border px-4 py-3 text-[12px] leading-5 ${dayStatusBadgeClassNameMap[selectedDayOverride.status]}`}>
+              <p className="font-semibold">{getDayStatusLabel(selectedDayOverride.status)}</p>
+              <p className="mt-1">{selectedDayOverride.message}</p>
+            </div>
+          ) : null}
 
           <div className="mt-3 space-y-2.5">
             {selectedDayBookings.length ? (
@@ -498,6 +548,7 @@ export function AdminCalendarMonth({
                   <span key={day}>{day.slice(0, 1)}</span>
                 ))}
                 {dayCells.slice(0, 35).map((day) => {
+                  const dayOverride = dayOverridesByDate.get(toDayInputValue(day));
                   const isCurrentMonth = day.getUTCMonth() === monthStart.getUTCMonth();
                   const isSelected = isSameDay(day, selectedDate);
 
@@ -517,7 +568,9 @@ export function AdminCalendarMonth({
                         isSelected
                           ? "bg-primary text-primary-foreground"
                           : isCurrentMonth
-                            ? "bg-muted/45 text-foreground hover:bg-muted/70"
+                            ? dayOverride && dayOverride.status !== "OPEN"
+                              ? "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                              : "bg-muted/45 text-foreground hover:bg-muted/70"
                             : "text-muted-foreground/40"
                       }`}
                     >
@@ -543,6 +596,13 @@ export function AdminCalendarMonth({
               </div>
 
               <div className="flex items-center gap-2">
+                {currentView === "day" ? (
+                  <AdminCalendarDayStatusControl
+                    date={selectedDayOverride.date}
+                    currentStatus={selectedDayOverride.status}
+                    currentReason={selectedDayOverride.reason}
+                  />
+                ) : null}
                 <Link
                   href={previousHref}
                   className="inline-flex size-10 items-center justify-center rounded-[0.95rem] border border-border bg-background transition hover:bg-muted"
@@ -562,6 +622,12 @@ export function AdminCalendarMonth({
 
             {currentView === "day" ? (
               <div className="space-y-3 px-5 py-5">
+                {selectedDayOverride.status !== "OPEN" ? (
+                  <section className={`rounded-[1.2rem] border px-4 py-4 ${dayStatusBadgeClassNameMap[selectedDayOverride.status]}`}>
+                    <p className="text-[13px] font-semibold leading-5">{getDayStatusLabel(selectedDayOverride.status)}</p>
+                    <p className="mt-1 text-[12px] leading-5">{selectedDayOverride.message}</p>
+                  </section>
+                ) : null}
                 {orderedTimeSlots.map((slot) => {
                   const slotBookings = selectedDayBookings.filter((booking) => booking.timeSlot === slot);
 
@@ -656,6 +722,7 @@ export function AdminCalendarMonth({
                   {dayCells.map((day) => {
                     const dayKey = toDayInputValue(day);
                     const dayBookings = bookingsByDay.get(dayKey) || [];
+                    const dayOverride = dayOverridesByDate.get(dayKey);
                     const isCurrentMonth = day.getUTCMonth() === monthStart.getUTCMonth();
                     const isToday =
                       dayKey === new Date().toISOString().slice(0, 10);
@@ -695,6 +762,12 @@ export function AdminCalendarMonth({
                             </span>
                           ) : null}
                         </div>
+
+                        {dayOverride && dayOverride.status !== "OPEN" ? (
+                          <div className={`mb-2 rounded-full border px-2 py-1 text-[10px] font-semibold leading-none ${dayStatusBadgeClassNameMap[dayOverride.status]}`}>
+                            {getDayStatusLabel(dayOverride.status)}
+                          </div>
+                        ) : null}
 
                         <div className="space-y-2">
                           {dayBookings.slice(0, 3).map((booking) => renderMonthEventChip(booking))}

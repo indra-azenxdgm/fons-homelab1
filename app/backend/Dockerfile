@@ -2,10 +2,10 @@ FROM node:22-bookworm
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
 RUN npm install
 
-COPY prisma ./prisma
 RUN npm run prisma:generate
 
 COPY tsconfig.json prisma.config.ts ./

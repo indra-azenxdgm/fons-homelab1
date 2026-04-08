@@ -22,6 +22,7 @@ import {
   createBookingSquadsUpdatedAdminNotifications,
   createBookingStatusChangedAdminNotifications,
 } from "@/services/notifications.service";
+import { listBookingDayOverridesForRange } from "@/services/booking-day-overrides.service";
 
 export const bookingStatusOptions = Object.values(BookingStatus);
 type BookingStatusGroup = {
@@ -465,11 +466,22 @@ export async function getAdminCalendarMonth(filters: CalendarFilters) {
       },
     }),
   ]);
+  const dayOverrides = await listBookingDayOverridesForRange(gridStart, gridEnd);
+  const selectedDayOverride =
+    dayOverrides.find((override) => override.date === selectedDate.toISOString().slice(0, 10))
+    || {
+      date: selectedDate.toISOString().slice(0, 10),
+      status: "OPEN" as const,
+      reason: null,
+      message: null,
+    };
 
   return {
     monthStart,
     selectedDate,
     bookings: bookings.map(mapAssignedSquads),
+    selectedDayOverride,
+    dayOverrides,
     serviceTypes,
     squads,
     appliedFilters: {

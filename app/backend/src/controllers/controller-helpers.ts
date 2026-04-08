@@ -381,5 +381,28 @@ export function mapKnownError(response: Response, error: unknown) {
     return true;
   }
 
+  if (error instanceof Error && error.message === "SUPER_ADMIN_REQUIRED") {
+    sendApiError(response, {
+      status: 403,
+      category: "security",
+      code: "super_admin_required",
+      message: "Only Super Admin can perform this action",
+    });
+    return true;
+  }
+
+  if (error instanceof Error && error.message === "OPERATIONAL_DATA_WIPE_CONFIRMATION_INVALID") {
+    sendApiError(response, {
+      status: 400,
+      category: "validation",
+      code: "operational_data_wipe_confirmation_invalid",
+      message: "Type the exact confirmation phrase to continue",
+      fieldErrors: {
+        confirmationText: ["Type WIPE OPERATIONAL DATA to continue."],
+      },
+    });
+    return true;
+  }
+
   return false;
 }

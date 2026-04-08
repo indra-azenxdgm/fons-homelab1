@@ -13,6 +13,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   Settings,
+  ShieldAlert,
   ShieldUser,
   UserRound,
   Users,
@@ -42,6 +43,7 @@ const iconMap: Record<AdminNavigationIcon, ComponentType<{ className?: string }>
   users: Users,
   "user-round": UserRound,
   "shield-user": ShieldUser,
+  "shield-alert": ShieldAlert,
   settings: Settings,
 };
 

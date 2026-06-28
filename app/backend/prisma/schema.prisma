@@ -202,6 +202,25 @@ model BookingDayOverride {
   @@index([status, date])
 }
 
+model BookingSlotOverride {
+  id                   String           @id @default(cuid())
+  date                 DateTime         @db.Date
+  timeSlot             TimeSlot
+  status               BookingDayStatus
+  reason               String?
+  createdByAdminUserId String
+  updatedByAdminUserId String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  createdByAdminUser   AdminUser        @relation("BookingSlotOverrideCreatedBy", fields: [createdByAdminUserId], references: [id], onDelete: Restrict)
+  updatedByAdminUser   AdminUser        @relation("BookingSlotOverrideUpdatedBy", fields: [updatedByAdminUserId], references: [id], onDelete: Restrict)
+
+  @@unique([date, timeSlot])
+  @@index([date])
+  @@index([status, date])
+}
+
 model AdminUser {
   id            String       @id @default(cuid())
   name          String
@@ -221,6 +240,8 @@ model AdminUser {
   notifications AdminNotification[]
   createdBookingDayOverrides BookingDayOverride[] @relation("BookingDayOverrideCreatedBy")
   updatedBookingDayOverrides BookingDayOverride[] @relation("BookingDayOverrideUpdatedBy")
+  createdBookingSlotOverrides BookingSlotOverride[] @relation("BookingSlotOverrideCreatedBy")
+  updatedBookingSlotOverrides BookingSlotOverride[] @relation("BookingSlotOverrideUpdatedBy")
   squad         Squad?       @relation(fields: [squadId], references: [id], onDelete: SetNull)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

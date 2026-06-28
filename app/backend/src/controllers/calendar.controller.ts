@@ -2,8 +2,8 @@ import type { Request, Response } from "express";
 
 import { sendZodValidationError } from "@/controllers/controller-helpers";
 import { getAuthenticatedAdmin } from "@/middleware/auth";
-import { getCalendarMonth, getCalendarServiceTypes, updateCalendarDayOverride } from "@/services/calendar.service";
-import { bookingDayOverrideUpsertSchema, calendarQuerySchema } from "@/validation/api-schemas";
+import { getCalendarMonth, getCalendarServiceTypes, updateCalendarDayOverride, updateCalendarSlotOverride } from "@/services/calendar.service";
+import { bookingDayOverrideUpsertSchema, bookingSlotOverrideUpsertSchema, calendarQuerySchema } from "@/validation/api-schemas";
 
 export async function getAdminCalendar(request: Request, response: Response) {
   const parsedQuery = calendarQuerySchema.safeParse(request.query);
@@ -42,6 +42,32 @@ export async function patchAdminCalendarDayOverride(request: Request, response: 
     success: true,
     ...(await updateCalendarDayOverride({
       date: parsedBody.data.date,
+      status: parsedBody.data.status,
+      reason: parsedBody.data.reason,
+      actingAdminUserId: adminUser.id,
+    })),
+  });
+}
+
+export async function patchAdminCalendarSlotOverride(request: Request, response: Response) {
+  const parsedBody = bookingSlotOverrideUpsertSchema.safeParse(request.body);
+
+  if (!parsedBody.success) {
+    sendZodValidationError(response, parsedBody.error, "Calendar slot status is not valid.");
+    return;
+  }
+
+  const adminUser = getAuthenticatedAdmin(response);
+
+  if (!adminUser) {
+    throw new Error("UNAUTHORIZED_ADMIN");
+  }
+
+  response.json({
+    success: true,
+    ...(await updateCalendarSlotOverride({
+      date: parsedBody.data.date,
+      timeSlot: parsedBody.data.timeSlot,
       status: parsedBody.data.status,
       reason: parsedBody.data.reason,
       actingAdminUserId: adminUser.id,

@@ -11,6 +11,16 @@ function getRequiredEnv(key: "INTERNAL_API_BASE_URL" | "NEXT_PUBLIC_API_BASE_URL
   return value;
 }
 
+function validateInternalApiBaseUrl(value: string) {
+  const url = new URL(value);
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`Invalid INTERNAL_API_BASE_URL: expected http or https URL, got ${value}`);
+  }
+
+  return `${url.protocol}//${url.host}`;
+}
+
 function normalizeSiteUrl(value: string) {
   const url = new URL(value);
 
@@ -27,7 +37,17 @@ function shouldUseBrowserSameOrigin(value: string) {
 }
 
 export function getInternalApiBaseUrl() {
-  return process.env.INTERNAL_API_BASE_URL || getRequiredEnv("NEXT_PUBLIC_API_BASE_URL");
+  const value = process.env.INTERNAL_API_BASE_URL;
+
+  if (value) {
+    return validateInternalApiBaseUrl(value);
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Missing required environment variable: INTERNAL_API_BASE_URL");
+  }
+
+  return validateInternalApiBaseUrl("http://localhost:3001");
 }
 
 export function getBrowserApiBaseUrl() {

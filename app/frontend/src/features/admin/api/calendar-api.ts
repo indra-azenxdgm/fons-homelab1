@@ -20,6 +20,22 @@ export async function getAdminCalendarMonthApi(filters: Record<string, string | 
       reason: string | null;
       message: string | null;
     }>;
+    selectedDaySlotOverrides: Array<{
+      date: string;
+      timeSlot: TimeSlot;
+      status: BookingDayStatus;
+      reason: string | null;
+      message: string | null;
+      isManualOverride: boolean;
+    }>;
+    slotOverrides: Array<{
+      date: string;
+      timeSlot: TimeSlot;
+      status: BookingDayStatus;
+      reason: string | null;
+      message: string | null;
+      isManualOverride: boolean;
+    }>;
     bookings: Array<{
       id: string;
       bookingCode: string;
@@ -75,6 +91,34 @@ export async function patchAdminCalendarDayOverrideApi(input: {
       message: string | null;
     };
   }>("/api/admin/calendar/day-override", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function patchAdminCalendarSlotOverrideApi(input: {
+  date: string;
+  timeSlot: TimeSlot;
+  status: BookingDayStatus;
+  reason?: string | null;
+}) {
+  return fetchAdminApi<{
+    success: true;
+    message: string;
+    previousStatus: BookingDayStatus;
+    isStored: boolean;
+    override: {
+      date: string;
+      timeSlot: TimeSlot;
+      status: BookingDayStatus;
+      reason: string | null;
+      message: string | null;
+      isManualOverride: boolean;
+    };
+  }>("/api/admin/calendar/slot-override", {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

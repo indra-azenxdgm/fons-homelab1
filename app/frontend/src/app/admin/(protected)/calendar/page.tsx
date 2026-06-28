@@ -40,6 +40,8 @@ export default async function AdminCalendarPage({
       selectedDate={calendarMonth.selectedDate}
       selectedDayOverride={calendarMonth.selectedDayOverride}
       dayOverrides={calendarMonth.dayOverrides}
+      selectedDaySlotOverrides={calendarMonth.selectedDaySlotOverrides}
+      slotOverrides={calendarMonth.slotOverrides}
       bookings={calendarMonth.bookings}
       serviceTypes={calendarMonth.serviceTypes}
       squads={calendarMonth.squads}

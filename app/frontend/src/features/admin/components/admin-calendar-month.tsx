@@ -11,6 +11,8 @@ import { AdminCalendarFilters } from "@/features/admin/components/admin-calendar
 import { AdminCalendarLegend } from "@/features/admin/components/admin-calendar-legend";
 import { AdminCalendarMobileAgendaItem } from "@/features/admin/components/admin-calendar-mobile-agenda-item";
 import { AdminCalendarMobileMonthCard } from "@/features/admin/components/admin-calendar-mobile-month-card";
+import { AdminCalendarSlotStatusControl } from "@/features/admin/components/admin-calendar-slot-status-control";
+import { getCalendarSlotStatusLabel } from "@/features/admin/components/admin-calendar-status-options";
 import { AdminCalendarViewSwitcher } from "@/features/admin/components/admin-calendar-view-switcher";
 import { getAdminBookingServiceDisplayLabel } from "@/features/admin/lib/shared/admin-booking-service-display";
 import {
@@ -21,7 +23,13 @@ import {
   toAdminCalendarView,
   type AdminCalendarView,
 } from "@/features/admin/lib/shared/admin-calendar";
-import type { BookingDayStatus, BookingStatus, TimeSlot } from "@/features/booking/constants";
+import {
+  ACTIVE_BOOKING_STATUSES,
+  MAX_BOOKINGS_PER_SLOT,
+  type BookingDayStatus,
+  type BookingStatus,
+  type TimeSlot,
+} from "@/features/booking/constants";
 
 type CalendarBooking = {
   id: string;
@@ -60,6 +68,22 @@ type AdminCalendarMonthProps = {
     status: BookingDayStatus;
     reason: string | null;
     message: string | null;
+  }>;
+  selectedDaySlotOverrides: Array<{
+    date: string;
+    timeSlot: TimeSlot;
+    status: BookingDayStatus;
+    reason: string | null;
+    message: string | null;
+    isManualOverride: boolean;
+  }>;
+  slotOverrides: Array<{
+    date: string;
+    timeSlot: TimeSlot;
+    status: BookingDayStatus;
+    reason: string | null;
+    message: string | null;
+    isManualOverride: boolean;
   }>;
   bookings: CalendarBooking[];
   serviceTypes: Array<{
@@ -101,6 +125,12 @@ const statusColorMap: Record<BookingStatus, string> = {
 };
 
 const dayStatusBadgeClassNameMap: Record<BookingDayStatus, string> = {
+  OPEN: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  FULL_BOOKED: "border-amber-200 bg-amber-50 text-amber-800",
+  CLOSED: "border-rose-200 bg-rose-50 text-rose-800",
+};
+
+const slotStatusBadgeClassNameMap: Record<BookingDayStatus, string> = {
   OPEN: "border-emerald-200 bg-emerald-50 text-emerald-800",
   FULL_BOOKED: "border-amber-200 bg-amber-50 text-amber-800",
   CLOSED: "border-rose-200 bg-rose-50 text-rose-800",
@@ -299,6 +329,8 @@ export function AdminCalendarMonth({
   selectedDate,
   selectedDayOverride,
   dayOverrides,
+  selectedDaySlotOverrides,
+  slotOverrides,
   bookings,
   serviceTypes,
   squads,
@@ -312,6 +344,10 @@ export function AdminCalendarMonth({
   const weekStart = startOfWeek(selectedDate);
   const weekDaysRange = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
   const dayOverridesByDate = new Map(dayOverrides.map((override) => [override.date, override]));
+  void slotOverrides;
+  const selectedDaySlotOverridesBySlot = new Map(
+    selectedDaySlotOverrides.map((override) => [override.timeSlot, override]),
+  );
 
   const bookingsByDay = new Map<string, CalendarBooking[]>();
 
@@ -324,6 +360,12 @@ export function AdminCalendarMonth({
 
   const selectedDayKey = toDayInputValue(selectedDate);
   const selectedDayBookings = bookingsByDay.get(selectedDayKey) || [];
+  const hasCapacityAffectingFilters = Boolean(
+    appliedFilters.q
+      || appliedFilters.status
+      || appliedFilters.assignedSquadId
+      || appliedFilters.serviceTypeId,
+  );
   const mobileCalendarDays = dayCells.map((day) => {
     const dayKey = toDayInputValue(day);
 
@@ -490,23 +532,85 @@ export function AdminCalendarMonth({
           ) : null}
 
           <div className="mt-3 space-y-2.5">
-            {selectedDayBookings.length ? (
-              selectedDayBookings.map((booking) => (
-                <AdminCalendarMobileAgendaItem
-                  key={booking.id}
-                  booking={booking}
-                />
-              ))
-            ) : (
-              <div className="rounded-[1.1rem] border border-dashed border-border/70 bg-muted/18 px-4 py-5 text-center">
-                <p className="admin-card-title">
-                  No bookings scheduled
-                </p>
-                <p className="admin-meta-text mt-1">
-                  Try another date in this month or adjust the current filters.
-                </p>
-              </div>
-            )}
+            {orderedTimeSlots.map((slot) => {
+              const slotBookings = selectedDayBookings.filter((booking) => booking.timeSlot === slot);
+              const slotOverride = selectedDaySlotOverridesBySlot.get(slot);
+              const isManualSlotOverride = Boolean(slotOverride?.isManualOverride && slotOverride.status !== "OPEN");
+              const activeSlotBookingCount = slotBookings.filter((booking) =>
+                ACTIVE_BOOKING_STATUSES.includes(booking.status),
+              ).length;
+              const isCapacityFull =
+                !hasCapacityAffectingFilters
+                && !isManualSlotOverride
+                && activeSlotBookingCount >= MAX_BOOKINGS_PER_SLOT;
+              const slotStatusText = isManualSlotOverride
+                ? "Manual override"
+                : isCapacityFull
+                  ? "Capacity full"
+                  : "Normal slot status";
+
+              return (
+                <section
+                  key={`mobile-${slot}`}
+                  className="rounded-[1.1rem] border border-border/70 bg-muted/18 p-3"
+                >
+                  <div className="flex flex-col gap-2 min-[380px]:flex-row min-[380px]:items-start min-[380px]:justify-between">
+                    <div className="min-w-0">
+                      <p className="admin-card-title">
+                        {getTimeSlotLabel(slot)}
+                      </p>
+                      <p className="admin-meta-text mt-1">
+                        {slotBookings.length} booking{slotBookings.length === 1 ? "" : "s"} | {slotStatusText}
+                      </p>
+                      {isManualSlotOverride && slotOverride ? (
+                        <span
+                          className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none ${slotStatusBadgeClassNameMap[slotOverride.status]}`}
+                          title={slotOverride.reason ? `Reason: ${slotOverride.reason}` : "Manual override. No reason provided."}
+                          aria-label={
+                            slotOverride.reason
+                              ? `${getCalendarSlotStatusLabel(slotOverride.status)}. Reason: ${slotOverride.reason}`
+                              : `${getCalendarSlotStatusLabel(slotOverride.status)}. No reason provided.`
+                          }
+                        >
+                          {getCalendarSlotStatusLabel(slotOverride.status)}
+                        </span>
+                      ) : isCapacityFull ? (
+                        <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold leading-none text-slate-700">
+                          Capacity full
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="shrink-0">
+                      <AdminCalendarSlotStatusControl
+                        date={selectedDayKey}
+                        timeSlot={slot}
+                        slotLabel={getTimeSlotLabel(slot)}
+                        currentStatus={slotOverride?.status ?? "OPEN"}
+                        currentReason={slotOverride?.reason ?? null}
+                        bookingCount={slotBookings.length}
+                        isBookingCountFiltered={hasCapacityAffectingFilters}
+                        dayStatus={selectedDayOverride.status}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2.5">
+                    {slotBookings.length ? (
+                      slotBookings.map((booking) => (
+                        <AdminCalendarMobileAgendaItem
+                          key={booking.id}
+                          booking={booking}
+                        />
+                      ))
+                    ) : (
+                      <div className="rounded-[0.95rem] border border-dashed border-border/70 bg-white/75 px-3 py-3 text-[11px] leading-4 text-muted-foreground">
+                        No bookings scheduled in this time slot.
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </section>
       </div>
@@ -626,24 +730,73 @@ export function AdminCalendarMonth({
                   <section className={`rounded-[1.2rem] border px-4 py-4 ${dayStatusBadgeClassNameMap[selectedDayOverride.status]}`}>
                     <p className="text-[13px] font-semibold leading-5">{getDayStatusLabel(selectedDayOverride.status)}</p>
                     <p className="mt-1 text-[12px] leading-5">{selectedDayOverride.message}</p>
+                    <p className="mt-2 text-[12px] leading-5">
+                      Day status has priority. Slot override changes will only affect public availability after this day is reopened.
+                    </p>
                   </section>
                 ) : null}
+                <p className="admin-meta-text px-1">
+                  Manual slot overrides affect new public bookings only. Existing bookings stay unchanged.
+                </p>
                 {orderedTimeSlots.map((slot) => {
                   const slotBookings = selectedDayBookings.filter((booking) => booking.timeSlot === slot);
+                  const slotOverride = selectedDaySlotOverridesBySlot.get(slot);
+                  const isManualSlotOverride = Boolean(slotOverride?.isManualOverride && slotOverride.status !== "OPEN");
+                  const activeSlotBookingCount = slotBookings.filter((booking) =>
+                    ACTIVE_BOOKING_STATUSES.includes(booking.status),
+                  ).length;
+                  const isCapacityFull =
+                    !hasCapacityAffectingFilters
+                    && !isManualSlotOverride
+                    && activeSlotBookingCount >= MAX_BOOKINGS_PER_SLOT;
+                  const slotStatusText = isManualSlotOverride
+                    ? "Manual override"
+                    : isCapacityFull
+                      ? "Capacity full"
+                      : "Normal slot status";
 
                   return (
                     <section
                       key={slot}
                       className="rounded-[1.2rem] border border-border/70 bg-muted/18 p-4"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                            <p className="admin-card-title">
-                              {getTimeSlotLabel(slot)}
-                            </p>
-                            <p className="admin-meta-text">
-                              {slotBookings.length} booking{slotBookings.length === 1 ? "" : "s"}
-                            </p>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="admin-card-title">
+                            {getTimeSlotLabel(slot)}
+                          </p>
+                          <p className="admin-meta-text mt-1">
+                            {slotBookings.length} booking{slotBookings.length === 1 ? "" : "s"} | {slotStatusText}
+                          </p>
+                          {isManualSlotOverride && slotOverride ? (
+                            <span
+                              className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none ${slotStatusBadgeClassNameMap[slotOverride.status]}`}
+                              title={slotOverride.reason ? `Reason: ${slotOverride.reason}` : "Manual override. No reason provided."}
+                              aria-label={
+                                slotOverride.reason
+                                  ? `${getCalendarSlotStatusLabel(slotOverride.status)}. Reason: ${slotOverride.reason}`
+                                  : `${getCalendarSlotStatusLabel(slotOverride.status)}. No reason provided.`
+                              }
+                            >
+                              {getCalendarSlotStatusLabel(slotOverride.status)}
+                            </span>
+                          ) : isCapacityFull ? (
+                            <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold leading-none text-slate-700">
+                              Capacity full
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="shrink-0">
+                          <AdminCalendarSlotStatusControl
+                            date={selectedDayKey}
+                            timeSlot={slot}
+                            slotLabel={getTimeSlotLabel(slot)}
+                            currentStatus={slotOverride?.status ?? "OPEN"}
+                            currentReason={slotOverride?.reason ?? null}
+                            bookingCount={slotBookings.length}
+                            isBookingCountFiltered={hasCapacityAffectingFilters}
+                            dayStatus={selectedDayOverride.status}
+                          />
                         </div>
                       </div>
 

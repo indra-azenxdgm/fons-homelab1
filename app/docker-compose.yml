@@ -21,22 +21,34 @@ services:
     image: gotenberg/gotenberg:8
     container_name: fons_gotenberg
     restart: unless-stopped
+    mem_limit: 1g
+    mem_reservation: 256m
+    pids_limit: 256
     environment:
-      CHROMIUM_AUTO_START: "true"
-      LIBREOFFICE_AUTO_START: "true"
+      CHROMIUM_AUTO_START: "false"
+      LIBREOFFICE_AUTO_START: "false"
     ports:
       - "127.0.0.1:${GOTENBERG_PORT:-3006}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: fons_backend
     restart: unless-stopped
+    mem_limit: 512m
+    mem_reservation: 160m
+    pids_limit: 96
     depends_on:
       postgres:
         condition: service_healthy
       gotenberg:
-        condition: service_started
+        condition: service_healthy
     environment:
       PORT: "3001"
       NODE_ENV: ${BACKEND_NODE_ENV:-production}
@@ -54,6 +66,10 @@ services:
       ALLOW_DEFAULT_DEV_ADMIN_SEED: ${ALLOW_DEFAULT_DEV_ADMIN_SEED:-false}
     ports:
       - "${BACKEND_BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-3005}:3001"
+    networks:
+      default:
+        aliases:
+          - fons_backend_api
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -74,11 +90,14 @@ services:
         NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
     container_name: fons_frontend
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 96m
+    pids_limit: 64
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://backend:3001}
+      INTERNAL_API_BASE_URL: ${INTERNAL_API_BASE_URL:-http://fons_backend_api:3001}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://www.fonsjogjaac.com}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://www.fonsjogjaac.com}
       NODE_ENV: ${FRONTEND_NODE_ENV:-production}
@@ -91,9 +110,11 @@ services:
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
       NEXT_TELEMETRY_DISABLED: "1"
     ports:
-      - "${FRONTEND_BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-3004}:3000"
+      - "${FRONTEND_BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-3004}:3010"
+    networks:
+      default: {}
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3010').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
       timeout: 5s
       retries: 10

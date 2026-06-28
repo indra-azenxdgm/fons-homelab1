@@ -1,4 +1,11 @@
-FROM node:22-bookworm
+FROM node:22-bookworm AS deps
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+FROM node:22-bookworm AS builder
 
 WORKDIR /app
 
@@ -17,13 +24,25 @@ ENV NEXT_PUBLIC_WHATSAPP_NUMBER=$NEXT_PUBLIC_WHATSAPP_NUMBER
 ENV NEXT_PUBLIC_SERVICE_CITY=$NEXT_PUBLIC_SERVICE_CITY
 ENV NEXT_PUBLIC_TURNSTILE_ENABLED=$NEXT_PUBLIC_TURNSTILE_ENABLED
 ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY package.json ./
-RUN npm install
-
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-EXPOSE 3000
+FROM node:22-bookworm-slim AS runner
 
-CMD ["npm", "run", "start", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3010
+
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+EXPOSE 3010
+
+CMD ["node", "server.js"]

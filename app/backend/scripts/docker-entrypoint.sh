@@ -8,7 +8,7 @@ if [ "${RUN_DB_MIGRATIONS:-false}" = "true" ]; then
   attempt=1
 
   while true; do
-    if npm run prisma:deploy; then
+    if ./node_modules/.bin/prisma migrate deploy; then
       break
     fi
 
@@ -23,4 +23,4 @@ if [ "${RUN_DB_MIGRATIONS:-false}" = "true" ]; then
   done
 fi
 
-exec npm run start
+exec "$@"

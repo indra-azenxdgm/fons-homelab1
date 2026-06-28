@@ -6,7 +6,7 @@ ingress:
   # Conservative cutover target based on preserved laptop runtime facts:
   # live cloudflared logs indicated remote config serving www only.
   - hostname: www.fonsjogjaac.com
-    service: http://fons_frontend:3000
+    service: http://fons_frontend:3010
     originRequest:
       httpHostHeader: www.fonsjogjaac.com
   - service: http_status:404

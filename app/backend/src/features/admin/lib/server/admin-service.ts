@@ -23,6 +23,7 @@ import {
   createBookingStatusChangedAdminNotifications,
 } from "@/services/notifications.service";
 import { listBookingDayOverridesForRange } from "@/services/booking-day-overrides.service";
+import { listBookingSlotOverridesForRange } from "@/services/booking-slot-overrides.service";
 
 export const bookingStatusOptions = Object.values(BookingStatus);
 type BookingStatusGroup = {
@@ -466,7 +467,10 @@ export async function getAdminCalendarMonth(filters: CalendarFilters) {
       },
     }),
   ]);
-  const dayOverrides = await listBookingDayOverridesForRange(gridStart, gridEnd);
+  const [dayOverrides, slotOverrides] = await Promise.all([
+    listBookingDayOverridesForRange(gridStart, gridEnd),
+    listBookingSlotOverridesForRange(gridStart, gridEnd),
+  ]);
   const selectedDayOverride =
     dayOverrides.find((override) => override.date === selectedDate.toISOString().slice(0, 10))
     || {
@@ -475,6 +479,8 @@ export async function getAdminCalendarMonth(filters: CalendarFilters) {
       reason: null,
       message: null,
     };
+  const selectedDayKey = selectedDate.toISOString().slice(0, 10);
+  const selectedDaySlotOverrides = slotOverrides.filter((override) => override.date === selectedDayKey);
 
   return {
     monthStart,
@@ -482,6 +488,8 @@ export async function getAdminCalendarMonth(filters: CalendarFilters) {
     bookings: bookings.map(mapAssignedSquads),
     selectedDayOverride,
     dayOverrides,
+    selectedDaySlotOverrides,
+    slotOverrides,
     serviceTypes,
     squads,
     appliedFilters: {

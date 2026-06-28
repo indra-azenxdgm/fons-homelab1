@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack -p 3010",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "next build",
     "test:finance-line-items": "tsx --test src/features/admin/lib/shared/admin-finance-line-items.test.ts",

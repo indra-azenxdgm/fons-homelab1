@@ -51,6 +51,12 @@ type Slot = {
   value: string;
   label: string;
   available: boolean;
+  remainingCapacity?: number;
+  overrideStatus?: BookingDayStatus | null;
+  overrideReason?: string | null;
+  isManualOverride?: boolean;
+  unavailableReason?: "invalid_date" | "day_override" | "slot_override" | "capacity_full" | null;
+  isCapacityFull?: boolean;
 };
 
 type BookingFormProps = {
@@ -569,6 +575,10 @@ export function BookingForm({
             return "Sudah ada booking serupa pada nomor HP, tanggal, dan jam yang sama.";
           case "slot_unavailable":
             return "Slot yang dipilih sudah tidak tersedia. Silakan pilih jam lain.";
+          case "slot_closed":
+            return "Slot yang dipilih sedang ditutup untuk booking baru. Silakan pilih jam lain.";
+          case "slot_full_booked":
+            return "Slot yang dipilih sudah penuh untuk booking baru. Silakan pilih jam lain.";
           case "booking_date_closed":
             return "Tanggal yang dipilih sedang ditutup untuk booking baru. Silakan pilih tanggal lain.";
           case "booking_date_full_booked":

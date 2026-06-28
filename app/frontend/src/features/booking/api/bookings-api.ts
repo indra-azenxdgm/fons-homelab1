@@ -17,6 +17,12 @@ export async function getPublicBookingFormApi() {
       value: string;
       label: string;
       available: boolean;
+      remainingCapacity: number;
+      overrideStatus: BookingDayStatus | null;
+      overrideReason: string | null;
+      isManualOverride: boolean;
+      unavailableReason: "invalid_date" | "day_override" | "slot_override" | "capacity_full" | null;
+      isCapacityFull: boolean;
     }>;
     initialDayStatus: BookingDayStatus;
     initialAvailabilityMessage: string | null;
@@ -31,6 +37,12 @@ export async function getPublicBookingAvailabilityApi(bookingDate: string) {
         value: string;
         label: string;
         available: boolean;
+        remainingCapacity: number;
+        overrideStatus: BookingDayStatus | null;
+        overrideReason: string | null;
+        isManualOverride: boolean;
+        unavailableReason: "invalid_date" | "day_override" | "slot_override" | "capacity_full" | null;
+        isCapacityFull: boolean;
       }>;
       dayStatus: BookingDayStatus;
       message: string | null;

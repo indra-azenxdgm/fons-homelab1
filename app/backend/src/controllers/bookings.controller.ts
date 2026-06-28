@@ -15,6 +15,7 @@ import {
   bookingStatusOptions,
   BookingCapacityError,
   BookingDuplicateActiveError,
+  BookingSlotUnavailableError,
   BookingValidationError,
   createBooking,
   getBookingDateAvailability,
@@ -229,6 +230,19 @@ export async function createPublicBooking(request: Request, response: Response) 
         message: error.message,
         fieldErrors: {
           bookingDate: [error.message],
+          timeSlot: [error.message],
+        },
+      });
+      return;
+    }
+
+    if (error instanceof BookingSlotUnavailableError) {
+      sendApiError(response, {
+        status: 409,
+        category: "conflict",
+        code: error.status === "CLOSED" ? "slot_closed" : "slot_full_booked",
+        message: error.message,
+        fieldErrors: {
           timeSlot: [error.message],
         },
       });

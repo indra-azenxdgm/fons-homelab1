@@ -26,6 +26,10 @@ import {
 import { createBookingCreatedAdminNotifications } from "@/services/notifications.service";
 import { dispatchNotificationEvent } from "@/features/notifications/lib/notification-service";
 import { getBookingDayAvailability } from "@/services/booking-day-overrides.service";
+import {
+  getLatestBlockingBookingSlotOverride,
+  listBookingSlotOverridesForDate,
+} from "@/services/booking-slot-overrides.service";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -58,6 +62,19 @@ export class BookingDayUnavailableError extends Error {
   }
 }
 
+export class BookingSlotUnavailableError extends Error {
+  status: BookingDayStatus;
+
+  constructor(
+    status: BookingDayStatus,
+    message = getDefaultBookingSlotUnavailableMessage(status),
+  ) {
+    super(message);
+    this.name = "BookingSlotUnavailableError";
+    this.status = status;
+  }
+}
+
 export class BookingValidationError extends Error {
   fieldErrors: Record<string, string[]>;
 
@@ -82,6 +99,12 @@ function getDefaultBookingDayUnavailableMessage(status: BookingDayStatus) {
   return status === BookingDayStatus.CLOSED
     ? "Tanggal ini ditutup untuk booking baru. Silakan pilih tanggal lain."
     : "Tanggal ini sudah penuh untuk booking baru. Silakan pilih tanggal lain.";
+}
+
+function getDefaultBookingSlotUnavailableMessage(status: BookingDayStatus) {
+  return status === BookingDayStatus.CLOSED
+    ? "Slot yang dipilih ditutup untuk booking baru. Silakan pilih jam lain."
+    : "Slot yang dipilih sudah penuh untuk booking baru. Silakan pilih jam lain.";
 }
 
 function parseCity(address: string) {
@@ -196,6 +219,11 @@ export async function getBookingDateAvailability(bookingDate: string) {
         ...slot,
         available: false,
         remainingCapacity: 0,
+        overrideStatus: null,
+        overrideReason: null,
+        isManualOverride: false,
+        unavailableReason: "invalid_date" as const,
+        isCapacityFull: false,
       })),
       dayStatus: BookingDayStatus.OPEN,
       message: null,
@@ -210,22 +238,34 @@ export async function getBookingDateAvailability(bookingDate: string) {
         ...slot,
         available: false,
         remainingCapacity: 0,
+        overrideStatus: null,
+        overrideReason: null,
+        isManualOverride: false,
+        unavailableReason: "day_override" as const,
+        isCapacityFull: false,
       })),
       dayStatus: dayAvailability.status,
       message: dayAvailability.message,
     };
   }
 
-  const bookings = await db.booking.groupBy({
-    by: ["timeSlot"],
-    where: {
-      bookingDate: toBookingDate(bookingDate),
-      status: { in: ACTIVE_BOOKING_STATUSES },
-    },
-    _count: {
-      _all: true,
-    },
-  });
+  const [bookings, slotOverrides] = await Promise.all([
+    db.booking.groupBy({
+      by: ["timeSlot"],
+      where: {
+        bookingDate: toBookingDate(bookingDate),
+        status: { in: ACTIVE_BOOKING_STATUSES },
+      },
+      _count: {
+        _all: true,
+      },
+    }),
+    listBookingSlotOverridesForDate(bookingDate),
+  ]);
+
+  const slotOverridesBySlot = new Map(
+    slotOverrides.map((override) => [String(override.timeSlot), override]),
+  );
 
   const counts = new Map<string, number>(
     bookings.map((item) => [String(item.timeSlot), item._count._all]),
@@ -233,14 +273,28 @@ export async function getBookingDateAvailability(bookingDate: string) {
 
   return {
     slots: TIME_SLOT_OPTIONS.map((slot) => {
-    const booked = counts.get(slot.value) || 0;
-    const remainingCapacity = Math.max(MAX_BOOKINGS_PER_SLOT - booked, 0);
+      const booked = counts.get(slot.value) || 0;
+      const remainingCapacity = Math.max(MAX_BOOKINGS_PER_SLOT - booked, 0);
+      const slotOverride = slotOverridesBySlot.get(slot.value);
+      const isBlockingOverride = Boolean(
+        slotOverride && slotOverride.status !== BookingDayStatus.OPEN,
+      );
+      const isCapacityFull = !isBlockingOverride && remainingCapacity <= 0;
 
-    return {
-      ...slot,
-      available: remainingCapacity > 0,
-      remainingCapacity,
-    };
+      return {
+        ...slot,
+        available: !isBlockingOverride && remainingCapacity > 0,
+        remainingCapacity: isBlockingOverride ? 0 : remainingCapacity,
+        overrideStatus: slotOverride?.status ?? null,
+        overrideReason: slotOverride?.reason ?? null,
+        isManualOverride: isBlockingOverride,
+        unavailableReason: isBlockingOverride
+          ? "slot_override"
+          : isCapacityFull
+            ? "capacity_full"
+            : null,
+        isCapacityFull,
+      };
     }),
     dayStatus: dayAvailability.status,
     message: dayAvailability.message,
@@ -355,6 +409,13 @@ export async function createBooking(
   }
 
   if (!selectedSlot?.available) {
+    if (selectedSlot?.isManualOverride && selectedSlot.overrideStatus) {
+      throw new BookingSlotUnavailableError(
+        selectedSlot.overrideStatus,
+        getDefaultBookingSlotUnavailableMessage(selectedSlot.overrideStatus),
+      );
+    }
+
     throw new BookingCapacityError();
   }
 
@@ -391,6 +452,19 @@ export async function createBooking(
         throw new BookingDayUnavailableError(
           latestDayAvailability.status,
           latestDayAvailability.message || undefined,
+        );
+      }
+
+      const latestSlotOverride = await getLatestBlockingBookingSlotOverride(
+        tx,
+        values.bookingDate,
+        values.timeSlot as unknown as TimeSlot,
+      );
+
+      if (latestSlotOverride) {
+        throw new BookingSlotUnavailableError(
+          latestSlotOverride.status,
+          latestSlotOverride.message || undefined,
         );
       }
 

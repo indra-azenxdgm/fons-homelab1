@@ -18,6 +18,12 @@ export const publicAvailabilitySlotSchema = z.object({
   value: z.string(),
   label: z.string(),
   available: z.boolean(),
+  remainingCapacity: z.number().int().min(0).optional(),
+  overrideStatus: z.enum(["OPEN", "FULL_BOOKED", "CLOSED"]).nullable().optional(),
+  overrideReason: z.string().nullable().optional(),
+  isManualOverride: z.boolean().optional(),
+  unavailableReason: z.enum(["invalid_date", "day_override", "slot_override", "capacity_full"]).nullable().optional(),
+  isCapacityFull: z.boolean().optional(),
 });
 
 export type PublicBookingAvailabilityQuery = z.infer<

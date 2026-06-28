@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { siteConfig } from "@/config/site";
+import { PartnersSection } from "@/features/partners/components/partners-section";
 import { cn } from "@/lib/utils";
 
 const services = [
@@ -226,6 +227,8 @@ export function HomePage() {
           })}
         </div>
       </section>
+
+      <PartnersSection />
 
       <section id="kenapa-fons" className="mt-5 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="panel p-5 sm:p-6">

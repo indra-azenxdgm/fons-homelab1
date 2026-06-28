@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 
 import { BookingForm } from "@/features/booking/components/booking-form";
-import { BookingPartnersSection } from "@/features/booking/components/booking-partners-section";
 import {
   getBookingFormData,
 } from "@/features/booking/lib/booking-service";
@@ -66,7 +65,6 @@ export default async function BookingPage() {
           initialAvailabilityMessage={bookingFormData.initialAvailabilityMessage}
         />
       </div>
-      <BookingPartnersSection />
       <footer className="mt-8 border-t border-border/50 px-2 py-6 text-center sm:px-6 sm:py-7">
         <p className="text-[11px] leading-5 text-muted-foreground sm:text-xs">
           Developed by Azenx Digital Mandiri
